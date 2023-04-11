@@ -8,7 +8,6 @@ thumbnail is shown.
 Input parameters:
     - YouTube's video url 
 ================================================================================
-
 TODO:
 - compare thumbnail and video frames 
 - fix comparison algo - right now it has random accuracy
@@ -16,7 +15,6 @@ TODO:
 - input validation
 - exception handling (no suitable stream for video)
 - remove saving thumbnail functionality
-
 """
 import sys
 import requests
@@ -61,7 +59,8 @@ if __name__ == "__main__":
 
     # Compare thumbnail and video frames
 
-    min_error = 100.0
+    # Max float possible value is init value for min_error
+    min_error = sys.float_info.max
     
     thumbnail = cv2.imread("thumbnail.png")
 
@@ -107,8 +106,3 @@ if __name__ == "__main__":
     cv2.waitKey(0)
     cap.release()
     cv2.destroyAllWindows()
-
-
-    
-
-
