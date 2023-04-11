@@ -67,6 +67,29 @@ def request_and_save_thumbnail_img(thumbnail_url, filename):
 
     del response
 
+# Removes horizontal black bars from image
+def remove_horizontal_black_bars_from_img(img_filename):
+    img = cv2.imread(img_filename)
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # Threshold the image
+    ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY)
+
+    # Find contours
+    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Find largest contour
+    largest_contour = max(contours, key=cv2.contourArea)
+
+    # Find bounding box of largest contour
+    x, y, w, h = cv2.boundingRect(largest_contour)
+
+    # Crop image to bounding box
+    img_cropped = img[y:y+h, x:x+w]
+
+    cv2.imwrite(img_filename, img_cropped)
+
 if __name__ == "__main__":
 
     # Save program parameter
@@ -92,6 +115,9 @@ if __name__ == "__main__":
     # Max float possible value is init value for min_error
     min_error = sys.float_info.max
     
+    # Remove horizontal black bars from thumbnail image
+    remove_horizontal_black_bars_from_img('thumbnail.jpg')
+
     thumbnail = cv2.imread("thumbnail.png")
 
     cap = cv2.VideoCapture("yt_video.mp4")
