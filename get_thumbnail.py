@@ -10,11 +10,8 @@ Input parameters:
 ================================================================================
 TODO:
 - compare thumbnail and video frames 
-- fix comparison algo - right now it has random accuracy
-- change min_error init value
 - input validation
 - exception handling (no suitable stream for video)
-- remove saving thumbnail functionality
 """
 import sys
 import requests
@@ -23,16 +20,27 @@ import cv2
 import numpy as np
 from pytube import YouTube
 
-# Computes the Mean Squared Error between two images
-def mse(img1, img2):
+# Computes the error between two images. Second image is resized 
+# to the size of the first image 
+def error_between_two_images(img1, img2):
    h, w, x = img1.shape
+
    img2 = cv2.resize(img2, (w, h))
-   #print(img1.shape)
-   #print(img2.shape)
-   diff = cv2.subtract(img1, img2)
-   err = np.sum(diff**2)
-   mse = err/(float(h*w))
-   return mse
+
+   diff = cv2.absdiff(img1, img2)
+
+   err = np.mean(diff)
+
+   cv2.waitKey(0)
+
+   return err
+
+def miliseconds_to_minute(miliseconds):
+    # Less than 1 minute
+    if(miliseconds / 60000 < 1):
+        return "0." + str(round(miliseconds / 1000))
+    else:   # More or equal 1 minute
+        return str(floor(miliseconds / 60000)) + "." + str(miliseconds / 1000 % 60)
 
 if __name__ == "__main__":
 
