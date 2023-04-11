@@ -41,6 +41,31 @@ def miliseconds_to_minute(miliseconds):
         return "0." + str(round(miliseconds / 1000))
     else:   # More or equal 1 minute
         return str(floor(miliseconds / 60000)) + "." + str(miliseconds / 1000 % 60)
+    
+def request_and_save_thumbnail_img(thumbnail_url, filename):
+    print(thumbnail_url)
+
+    thumbnail_url = thumbnail_url.replace('sddefault', 'maxresdefault')
+
+    response = requests.get(thumbnail_url, stream=True)
+
+    if response.status_code == 200:
+        with open(filename, "wb") as out_file:
+            shutil.copyfileobj(response.raw, out_file)
+    else:
+        print("Max resolution thumbnail is not available")
+
+        thumbnail_url = thumbnail_url.replace('maxresdefault', 'sddefault')
+
+        print(thumbnail_url)
+
+        response = requests.get(thumbnail_url, stream=True)
+
+        if response.status_code == 200:
+            with open(filename, "wb") as out_file:
+                shutil.copyfileobj(response.raw, out_file)
+
+    del response
 
 if __name__ == "__main__":
 
@@ -60,10 +85,7 @@ if __name__ == "__main__":
 
     thumbnail_url = yt.thumbnail_url
 
-    response = requests.get(thumbnail_url, stream=True)
-    with open("thumbnail.png", "wb") as out_file:
-        shutil.copyfileobj(response.raw, out_file)
-    del response
+    request_and_save_thumbnail_img(thumbnail_url, "thumbnail.jpg")
 
     # Compare thumbnail and video frames
 
