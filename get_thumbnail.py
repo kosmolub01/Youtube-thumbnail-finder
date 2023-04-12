@@ -4,7 +4,7 @@ Filename: get_thumbnail.py
 Description:
 Script finds the thumbnail of a given YouTube's video and saves it in current 
 working directory. Video is also downloaded. Frame most similar to the 
-thumbnail is shown.
+thumbnail is saved.
 Input parameters:
     - YouTube's video url 
 ================================================================================
@@ -18,7 +18,12 @@ import requests
 import shutil
 import cv2
 import numpy as np
+import threading
 from pytube import YouTube
+from math import floor
+
+# Define the number of threads to use
+num_threads = 8
 
 # Computes the error between two images. Second image is resized 
 # to the size of the first image 
@@ -43,7 +48,6 @@ def miliseconds_to_minute(miliseconds):
         return str(floor(miliseconds / 60000)) + "." + str(miliseconds / 1000 % 60)
     
 def request_and_save_thumbnail_img(thumbnail_url, filename):
-    print(thumbnail_url)
 
     thumbnail_url = thumbnail_url.replace('sddefault', 'maxresdefault')
 
@@ -57,13 +61,15 @@ def request_and_save_thumbnail_img(thumbnail_url, filename):
 
         thumbnail_url = thumbnail_url.replace('maxresdefault', 'sddefault')
 
-        print(thumbnail_url)
-
         response = requests.get(thumbnail_url, stream=True)
 
         if response.status_code == 200:
             with open(filename, "wb") as out_file:
                 shutil.copyfileobj(response.raw, out_file)
+        else:
+            print("Thumbnail is not available")
+    
+    print("Thumbnail URL:", thumbnail_url)
 
     del response
 
@@ -90,6 +96,34 @@ def remove_horizontal_black_bars_from_img(img_filename):
 
     cv2.imwrite(img_filename, img_cropped)
 
+# Define the function to process a video segment
+def process_video_segment(video_filename, segment_indexes, thumbnail_filename, thread_no, result):
+
+    # Max float possible value is init value for min_error
+    min_error = sys.float_info.max
+
+    cap = cv2.VideoCapture(video_filename)
+
+    thumbnail = cv2.imread(thumbnail_filename)
+
+    print("Thread ", thread_no, ": ", segment_indexes[0], "-", segment_indexes[1])
+
+    cap.set(cv2.CAP_PROP_POS_FRAMES, segment_indexes[0])
+    for i in range(segment_indexes[0], segment_indexes[1]):
+        ret, frame = cap.read()
+        if ret:
+            error = error_between_two_images(thumbnail, frame)
+            if min_error >= error:
+                min_error = error
+                most_similar_frame = frame
+
+    most_similar_frame_filename = "most_similar_frame" + str(thread_no) + ".jpg"
+    cv2.imwrite(most_similar_frame_filename, most_similar_frame)
+
+    cap.release()
+
+    result[thread_no] = min_error
+
 if __name__ == "__main__":
 
     # Save program parameter
@@ -105,60 +139,66 @@ if __name__ == "__main__":
     stream.download(filename = "yt_video.mp4")
 
     # Request thumbnail image
-
     thumbnail_url = yt.thumbnail_url
 
     request_and_save_thumbnail_img(thumbnail_url, "thumbnail.jpg")
 
     # Compare thumbnail and video frames
+    cap = cv2.VideoCapture("yt_video.mp4")
 
     # Max float possible value is init value for min_error
     min_error = sys.float_info.max
-    
-    # Remove horizontal black bars from thumbnail image
+
+    most_similar_frame_thread_index = 0 
+
     remove_horizontal_black_bars_from_img('thumbnail.jpg')
 
-    thumbnail = cv2.imread("thumbnail.png")
+    # Get the total number of frames in the video
+    num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    cap = cv2.VideoCapture("yt_video.mp4")
+    # Calculate the number of frames per thread
+    frames_per_thread = num_frames // num_threads
 
-    while not cap.isOpened():
-        cap = cv2.VideoCapture("yt_video.mp4")
-        cv2.waitKey(1000)
-        print("Wait for the header")
+    # Threads return values - minimal errors
+    return_values = [None] * num_threads
 
-        pos_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
-    while True:
-        flag, frame = cap.read()
-        if flag:
-            pos_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
+    # Divide the video frames into segments
+    segment_indexes = [[0 for x in range(2)] for y in range(num_threads)] 
 
-            print(str(pos_frame) + " frames")
+    for i in range(num_threads):
+        start_frame = i * frames_per_thread
+        end_frame = start_frame + frames_per_thread
+        if i == num_threads - 1:
+            end_frame = num_frames
 
-            error = mse(thumbnail, frame)
+        segment_indexes[i] = start_frame, end_frame
 
-            if min_error >= error:
-                min_error = error
-                most_similar_frame = frame
+    # Process each video segment in a separate thread
+    threads = []
+    for i in range(num_threads):
+        thread = threading.Thread(target=process_video_segment, args=("yt_video.mp4", segment_indexes[i], "thumbnail.jpg", i, return_values))
+        threads.append(thread)
+        thread.start()
 
-            print("Error: " + str(error))
-        else:
-            # The next frame is not ready, try to read it again
-            cap.set(cv2.cv.CV_CAP_PROP_POS_FRAMES, pos_frame-1)
-            print("Frame is not ready")
+    # Wait for all threads to finish
+    for thread in threads:
+        thread.join()
 
-        if cv2.waitKey(10) == 27:
-            break
+    print("Threads joined")
 
-        if cap.get(cv2.CAP_PROP_POS_FRAMES)==cap.get(cv2.CAP_PROP_FRAME_COUNT):
-            # If the number of captured frames is equal to the total number 
-            # of frames, then stop
-            break
-    
+
+    # Distinguish which thread returned minimal error
+    for i in range(num_threads):
+        if min_error >= return_values[i]:
+            min_error = return_values[i]
+            most_similar_frame_thread_index = i
+
     print("Min. error: " + str( min_error))
 
-    cv2.imshow("most_similar_frame", most_similar_frame)
+    most_similar_frame_filename = "most_similar_frame" + str(most_similar_frame_thread_index) + ".jpg"
 
-    cv2.waitKey(0)
+    # Save most similar frame
+    cv2.imwrite("most_similar_frame.jpg", cv2.imread(most_similar_frame_filename))
+
     cap.release()
     cv2.destroyAllWindows()
