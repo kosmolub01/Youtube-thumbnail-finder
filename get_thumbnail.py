@@ -6,10 +6,14 @@ Script finds the thumbnail of a given YouTube's video and saves it in current
 working directory. Video is also downloaded. Frame most similar to the 
 thumbnail is saved.
 Input parameters:
-    - YouTube's video url 
+    - YouTube's video URL
+Output:
+    - Thumbnail timestamp in a video (URL)
 ================================================================================
 TODO:
-- compare thumbnail and video frames 
+- result should be thumbnail timestamp 
+(moment of thumbnail occurrence in a video), as a URL
+- add GUI
 - input validation
 - exception handling (no suitable stream for video)
 """
@@ -19,6 +23,7 @@ import shutil
 import cv2
 import numpy as np
 import threading
+import tkinter as tk
 from pytube import YouTube
 from math import floor
 
@@ -97,7 +102,7 @@ def remove_horizontal_black_bars_from_img(img_filename):
     cv2.imwrite(img_filename, img_cropped)
 
 # Define the function to process a video segment
-def process_video_segment(video_filename, segment_indexes, thumbnail_filename, thread_no, result):
+def process_video_segment(video_filename, segment_indexes, thumbnail_filename, thread_no, segment_min_error, timestamp):
 
     # Max float possible value is init value for min_error
     min_error = sys.float_info.max
@@ -116,13 +121,15 @@ def process_video_segment(video_filename, segment_indexes, thumbnail_filename, t
             if min_error >= error:
                 min_error = error
                 most_similar_frame = frame
+                msec = cap.get(cv2.CAP_PROP_POS_MSEC)
 
     most_similar_frame_filename = "most_similar_frame" + str(thread_no) + ".jpg"
     cv2.imwrite(most_similar_frame_filename, most_similar_frame)
 
     cap.release()
 
-    result[thread_no] = min_error
+    segment_min_error[thread_no] = min_error
+    timestamp[thread_no] = int(msec // 1000)
 
 if __name__ == "__main__":
 
@@ -160,7 +167,10 @@ if __name__ == "__main__":
     frames_per_thread = num_frames // num_threads
 
     # Threads return values - minimal errors
-    return_values = [None] * num_threads
+    minimal_errors = [None] * num_threads
+
+    # Threads return values - timestamps
+    timestamps = [None] * num_threads
 
     # Divide the video frames into segments
     segment_indexes = [[0 for x in range(2)] for y in range(num_threads)] 
@@ -176,7 +186,7 @@ if __name__ == "__main__":
     # Process each video segment in a separate thread
     threads = []
     for i in range(num_threads):
-        thread = threading.Thread(target=process_video_segment, args=("yt_video.mp4", segment_indexes[i], "thumbnail.jpg", i, return_values))
+        thread = threading.Thread(target=process_video_segment, args=("yt_video.mp4", segment_indexes[i], "thumbnail.jpg", i, minimal_errors, timestamps))
         threads.append(thread)
         thread.start()
 
@@ -186,19 +196,23 @@ if __name__ == "__main__":
 
     print("Threads joined")
 
-
-    # Distinguish which thread returned minimal error
+    # Distinguish which thread returned minimal error. 
+    # Assign timestamp and most_similar frame thread_index respectively
     for i in range(num_threads):
-        if min_error >= return_values[i]:
-            min_error = return_values[i]
+        if min_error >= minimal_errors[i]:
+            min_error = minimal_errors[i]
+            timestamp = timestamps[i]
             most_similar_frame_thread_index = i
 
     print("Min. error: " + str( min_error))
 
-    most_similar_frame_filename = "most_similar_frame" + str(most_similar_frame_thread_index) + ".jpg"
+    # Print timestamp URL
+    timestamp = video_url + "&t=" + str(timestamp)
+    print("Timestamp URL: " + timestamp)
 
     # Save most similar frame
+    most_similar_frame_filename = "most_similar_frame" + str(most_similar_frame_thread_index) + ".jpg"
+
     cv2.imwrite("most_similar_frame.jpg", cv2.imread(most_similar_frame_filename))
 
     cap.release()
-    cv2.destroyAllWindows()
