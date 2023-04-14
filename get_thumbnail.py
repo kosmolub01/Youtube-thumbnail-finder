@@ -73,8 +73,8 @@ def miliseconds_to_minutes(miliseconds):
         minutes = "0." + str(round(miliseconds / 1000))
 
     else:   # More or equal 1 minute.
-        minutes = str(floor(miliseconds / 60000)) + "." 
-        + str(miliseconds / 1000 % 60)
+        minutes = str(floor(miliseconds / 60000)) + ".{msec}"
+        minutes.format(msec=str(miliseconds / 1000 % 60))
 
     return minutes 
     
@@ -273,8 +273,8 @@ if __name__ == "__main__":
     print("Timestamp URL: " + timestamp)
 
     # Save most similar frame.
-    most_similar_frame_filename = "most_similar_frame" 
-    + str(most_similar_frame_thread_index) + ".jpg"
+    index=str(most_similar_frame_thread_index)
+    most_similar_frame_filename = "most_similar_frame{i}.jpg".format(i=index)
 
     most_similar_frame = cv2.imread(most_similar_frame_filename)
 
