@@ -6,9 +6,9 @@ Script finds the thumbnail of a given YouTube's video and saves it in current
 working directory. Video is also downloaded. Frame most similar to the 
 thumbnail is saved.
 Input parameters:
-    - YouTube's video URL
+    - YouTube's video URL.
 Output:
-    - Thumbnail timestamp in a video (URL)
+    - Thumbnail timestamp in a video (URL).
 ================================================================================
 TODO:
 - result should be thumbnail timestamp 
@@ -16,6 +16,7 @@ TODO:
 - add GUI
 - input validation
 - exception handling (no suitable stream for video)
+
 """
 import sys
 import requests
@@ -23,16 +24,26 @@ import shutil
 import cv2
 import numpy as np
 import threading
-import tkinter as tk
 from pytube import YouTube
 from math import floor
 
-# Define the number of threads to use
+# Define the number of threads to use.
 num_threads = 8
 
-# Computes the error between two images. Second image is resized 
-# to the size of the first image 
 def error_between_two_images(img1, img2):
+   """
+   Computes the error between two images. Second image is resized to 
+   the size of the first image.
+
+   Args:
+      img1 -- first image.
+      img2 -- second image.
+
+   Returns:
+      err -- error between two images 
+      (mean of differences between corresponding pixels).
+
+   """
    h, w, x = img1.shape
 
    img2 = cv2.resize(img2, (w, h))
@@ -45,15 +56,37 @@ def error_between_two_images(img1, img2):
 
    return err
 
-def miliseconds_to_minute(miliseconds):
-    # Less than 1 minute
+def miliseconds_to_minutes(miliseconds):
+    """
+   Converts miliseconds to minutes.
+
+   Args:
+      miliseconds -- time in miliseconds to convert.
+
+   Returns:
+      minutes -- miliseconds converted to minutes 
+                 (YouTube's video time format - e.g. 4.23).
+
+   """
+    # Less than 1 minute.
     if(miliseconds / 60000 < 1):
-        return "0." + str(round(miliseconds / 1000))
-    else:   # More or equal 1 minute
-        return str(floor(miliseconds / 60000)) + "." + str(miliseconds / 1000 % 60)
+        minutes = "0." + str(round(miliseconds / 1000))
+
+    else:   # More or equal 1 minute.
+        minutes = str(floor(miliseconds / 60000)) + "." 
+        + str(miliseconds / 1000 % 60)
+
+    return minutes 
     
 def request_and_save_thumbnail_img(thumbnail_url, filename):
+    """
+    Downloads and saves YouTube's video thumbnail.
 
+    Args:
+      thumbnail_url -- URL of a thumbnail.
+      filename -- name of a file to save (in cwd) downloaded thumbnail.
+
+   """
     thumbnail_url = thumbnail_url.replace('sddefault', 'maxresdefault')
 
     response = requests.get(thumbnail_url, stream=True)
@@ -78,40 +111,65 @@ def request_and_save_thumbnail_img(thumbnail_url, filename):
 
     del response
 
-# Removes horizontal black bars from image
 def remove_horizontal_black_bars_from_img(img_filename):
+    """
+    Removes horizontal black bars from the image. Processed image is saved.
+
+    Args:
+      img_filename -- name of a file to process.
+
+   """
+        
     img = cv2.imread(img_filename)
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    # Threshold the image
+    # Threshold the image.
     ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY)
 
-    # Find contours
-    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Find contours.
+    contours, hierarchy = cv2.findContours(
+                              thresh, cv2.RETR_EXTERNAL, 
+                              cv2.CHAIN_APPROX_SIMPLE)
 
-    # Find largest contour
+    # Find largest contour.
     largest_contour = max(contours, key=cv2.contourArea)
 
-    # Find bounding box of largest contour
+    # Find bounding box of largest contour.
     x, y, w, h = cv2.boundingRect(largest_contour)
 
-    # Crop image to bounding box
+    # Crop image to bounding box.
     img_cropped = img[y:y+h, x:x+w]
 
     cv2.imwrite(img_filename, img_cropped)
 
-# Define the function to process a video segment
-def process_video_segment(video_filename, segment_indexes, thumbnail_filename, thread_no, segment_min_error, timestamp):
+def process_video_segment(
+        video_filename, segment_indexes, 
+        thumbnail_filename, thread_no, 
+        segment_min_error, timestamp):
+    """
+    Processes video segment - every frame of a video is compared 
+    with provided image. Timestamp of most similar frame 
+    and it's similarity error is saved.
 
-    # Max float possible value is init value for min_error
+    Args:
+      video_filename -- name of a file to process.
+      segment_indexes -- indexes pointing what part of video to process.
+      thumbnail_filename -- name of a file with thumbnail.
+      thread_no -- number of a thread.
+      segment_min_error -- list of minimal errors form threads.
+      timestamp -- list of timestamps of frames from threads.
+
+   """
+
+    # Max float possible value is init value for min_error.
     min_error = sys.float_info.max
 
     cap = cv2.VideoCapture(video_filename)
 
     thumbnail = cv2.imread(thumbnail_filename)
 
-    print("Thread ", thread_no, ": ", segment_indexes[0], "-", segment_indexes[1])
+    print("Thread", thread_no, ":", segment_indexes[0], "-", segment_indexes[1])
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, segment_indexes[0])
     for i in range(segment_indexes[0], segment_indexes[1]):
@@ -133,46 +191,46 @@ def process_video_segment(video_filename, segment_indexes, thumbnail_filename, t
 
 if __name__ == "__main__":
 
-    # Save program parameter
+    # Save program parameter.
     video_url = sys.argv[1]
 
-    # YouTube object with URL of desired video
+    # YouTube object with URL of desired video.
     yt = YouTube(video_url)
 
-    # Get filtered stream for the video
+    # Get filtered stream for the video.
     stream = yt.streams.filter(adaptive = True, mime_type="video/mp4").first()
 
-    # Download video
+    # Download video.
     stream.download(filename = "yt_video.mp4")
 
-    # Request thumbnail image
+    # Request thumbnail image.
     thumbnail_url = yt.thumbnail_url
 
     request_and_save_thumbnail_img(thumbnail_url, "thumbnail.jpg")
 
-    # Compare thumbnail and video frames
+    # Compare thumbnail and video frames.
     cap = cv2.VideoCapture("yt_video.mp4")
 
-    # Max float possible value is init value for min_error
+    # Max float possible value is init value for min_error.
     min_error = sys.float_info.max
 
     most_similar_frame_thread_index = 0 
 
     remove_horizontal_black_bars_from_img('thumbnail.jpg')
 
-    # Get the total number of frames in the video
+    # Get the total number of frames in the video.
     num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    # Calculate the number of frames per thread
+    # Calculate the number of frames per thread.
     frames_per_thread = num_frames // num_threads
 
-    # Threads return values - minimal errors
+    # Threads return values - minimal errors.
     minimal_errors = [None] * num_threads
 
-    # Threads return values - timestamps
+    # Threads return values - timestamps.
     timestamps = [None] * num_threads
 
-    # Divide the video frames into segments
+    # Divide the video frames into segments.
     segment_indexes = [[0 for x in range(2)] for y in range(num_threads)] 
 
     for i in range(num_threads):
@@ -183,21 +241,25 @@ if __name__ == "__main__":
 
         segment_indexes[i] = start_frame, end_frame
 
-    # Process each video segment in a separate thread
+    # Process each video segment in a separate thread.
     threads = []
     for i in range(num_threads):
-        thread = threading.Thread(target=process_video_segment, args=("yt_video.mp4", segment_indexes[i], "thumbnail.jpg", i, minimal_errors, timestamps))
+        thread = threading.Thread(
+                     target=process_video_segment, 
+                     args=("yt_video.mp4", segment_indexes[i], 
+                           "thumbnail.jpg", i, minimal_errors, 
+                           timestamps))
         threads.append(thread)
         thread.start()
 
-    # Wait for all threads to finish
+    # Wait for all threads to finish.
     for thread in threads:
         thread.join()
 
     print("Threads joined")
 
     # Distinguish which thread returned minimal error. 
-    # Assign timestamp and most_similar frame thread_index respectively
+    # Assign timestamp and most_similar frame thread_index respectively.
     for i in range(num_threads):
         if min_error >= minimal_errors[i]:
             min_error = minimal_errors[i]
@@ -206,13 +268,16 @@ if __name__ == "__main__":
 
     print("Min. error: " + str( min_error))
 
-    # Print timestamp URL
+    # Print timestamp URL.
     timestamp = video_url + "&t=" + str(timestamp)
     print("Timestamp URL: " + timestamp)
 
-    # Save most similar frame
-    most_similar_frame_filename = "most_similar_frame" + str(most_similar_frame_thread_index) + ".jpg"
+    # Save most similar frame.
+    most_similar_frame_filename = "most_similar_frame" 
+    + str(most_similar_frame_thread_index) + ".jpg"
 
-    cv2.imwrite("most_similar_frame.jpg", cv2.imread(most_similar_frame_filename))
+    most_similar_frame = cv2.imread(most_similar_frame_filename)
+
+    cv2.imwrite("most_similar_frame.jpg", most_similar_frame)
 
     cap.release()
