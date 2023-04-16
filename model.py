@@ -27,7 +27,7 @@ class Model:
         # Request thumbnail image.
         thumbnail_url = yt.thumbnail_url
 
-        request_and_save_thumbnail_img(thumbnail_url, "thumbnail.jpg")
+        self.request_and_save_thumbnail_img(thumbnail_url, "thumbnail.jpg")
 
         # Compare thumbnail and video frames.
         cap = cv2.VideoCapture("yt_video.mp4")
@@ -37,7 +37,7 @@ class Model:
 
         most_similar_frame_thread_index = 0 
 
-        remove_horizontal_black_bars_from_img('thumbnail.jpg')
+        self.remove_horizontal_black_bars_from_img('thumbnail.jpg')
 
         # Get the total number of frames in the video.
         num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -66,7 +66,7 @@ class Model:
         threads = []
         for i in range(num_threads):
             thread = threading.Thread(
-                        target=process_video_segment, 
+                        target=self.process_video_segment, 
                         args=("yt_video.mp4", segment_indexes[i], 
                             "thumbnail.jpg", i, minimal_errors, 
                             timestamps))
@@ -90,7 +90,7 @@ class Model:
         print("Min. error: " + str( min_error))
 
         # Print timestamp URL.
-        timestamp = video_url + "&t=" + str(timestamp)
+        timestamp = self.video_url + "&t=" + str(timestamp)
         print("Timestamp URL: " + timestamp)
 
         # Save most similar frame.
@@ -103,7 +103,7 @@ class Model:
 
         cap.release()
 
-    def error_between_two_images(img1, img2):
+    def error_between_two_images(self, img1, img2):
         """
         Computes the error between two images. Second image is resized to 
         the size of the first image.
@@ -151,26 +151,16 @@ class Model:
 
         return minutes 
     
-def request_and_save_thumbnail_img(thumbnail_url, filename):
+    def request_and_save_thumbnail_img(self, thumbnail_url, filename):
+        """
+        Downloads and saves YouTube's video thumbnail.
+
+        Args:
+        thumbnail_url -- URL of a thumbnail.
+        filename -- name of a file to save (in cwd) downloaded thumbnail.
+
     """
-    Downloads and saves YouTube's video thumbnail.
-
-    Args:
-      thumbnail_url -- URL of a thumbnail.
-      filename -- name of a file to save (in cwd) downloaded thumbnail.
-
-   """
-    thumbnail_url = thumbnail_url.replace('sddefault', 'maxresdefault')
-
-    response = requests.get(thumbnail_url, stream=True)
-
-    if response.status_code == 200:
-        with open(filename, "wb") as out_file:
-            shutil.copyfileobj(response.raw, out_file)
-    else:
-        print("Max resolution thumbnail is not available")
-
-        thumbnail_url = thumbnail_url.replace('maxresdefault', 'sddefault')
+        thumbnail_url = thumbnail_url.replace('sddefault', 'maxresdefault')
 
         response = requests.get(thumbnail_url, stream=True)
 
@@ -178,13 +168,23 @@ def request_and_save_thumbnail_img(thumbnail_url, filename):
             with open(filename, "wb") as out_file:
                 shutil.copyfileobj(response.raw, out_file)
         else:
-            print("Thumbnail is not available")
-    
-    print("Thumbnail URL:", thumbnail_url)
+            print("Max resolution thumbnail is not available")
 
-    del response
+            thumbnail_url = thumbnail_url.replace('maxresdefault', 'sddefault')
 
-    def remove_horizontal_black_bars_from_img(img_filename):
+            response = requests.get(thumbnail_url, stream=True)
+
+            if response.status_code == 200:
+                with open(filename, "wb") as out_file:
+                    shutil.copyfileobj(response.raw, out_file)
+            else:
+                print("Thumbnail is not available")
+        
+        print("Thumbnail URL:", thumbnail_url)
+
+        del response
+
+    def remove_horizontal_black_bars_from_img(self, img_filename):
         """
         Removes horizontal black bars from the image. Processed image is saved.
 
@@ -217,9 +217,10 @@ def request_and_save_thumbnail_img(thumbnail_url, filename):
         cv2.imwrite(img_filename, img_cropped)
 
     def process_video_segment(
-            video_filename, segment_indexes, 
-            thumbnail_filename, thread_no, 
-            segment_min_error, timestamp):
+            self, video_filename, 
+            segment_indexes, thumbnail_filename, 
+            thread_no, segment_min_error, 
+            timestamp):
         """
         Processes video segment - every frame of a video is compared 
         with provided image. Timestamp of most similar frame 
@@ -248,7 +249,7 @@ def request_and_save_thumbnail_img(thumbnail_url, filename):
         for i in range(segment_indexes[0], segment_indexes[1]):
             ret, frame = cap.read()
             if ret:
-                error = error_between_two_images(thumbnail, frame)
+                error = self.error_between_two_images(thumbnail, frame)
                 if min_error >= error:
                     min_error = error
                     most_similar_frame = frame
