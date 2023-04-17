@@ -11,8 +11,22 @@ from math import floor
 num_threads = 8
 
 class Model:
-    def __init__(self, video_url) -> None:
-        self.video_url = video_url
+    """
+    Model class of "Youtube thumbnail finder" app.
+
+    TBD:
+    Attributes
+    ----------
+    name : str
+        first name of the person
+
+    Methods
+    -------
+    info(additional=""):
+        Prints the person's name and age.
+    """
+    def __init__(self) -> None:
+        self.input_url = ""
 
     def process_video(self):
         """
@@ -24,7 +38,7 @@ class Model:
 
         """
         # YouTube object with URL of desired video.
-        yt = YouTube(self.video_url)
+        yt = YouTube(self.input_url)
 
         # Get filtered stream for the video.
         stream = yt.streams.filter(adaptive = True, mime_type="video/mp4").first()
@@ -98,7 +112,7 @@ class Model:
         print("Min. error: " + str( min_error))
 
         # Print timestamp URL.
-        timestamp = self.video_url + "&t=" + str(timestamp)
+        timestamp = self.input_url + "&t=" + str(timestamp)
 
         # Save most similar frame.
         index=str(most_similar_frame_thread_index)
