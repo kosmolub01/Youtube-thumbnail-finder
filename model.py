@@ -15,6 +15,14 @@ class Model:
         self.video_url = video_url
 
     def process_video(self):
+        """
+        Processes video - compares video's frames with video's thumbnail.
+
+        Returns:
+            url -- URL of a particular moment in the video 
+            (moment in which frame most similar to the thumbnail is shown).
+
+        """
         # YouTube object with URL of desired video.
         yt = YouTube(self.video_url)
 
@@ -91,7 +99,6 @@ class Model:
 
         # Print timestamp URL.
         timestamp = self.video_url + "&t=" + str(timestamp)
-        print("Timestamp URL: " + timestamp)
 
         # Save most similar frame.
         index=str(most_similar_frame_thread_index)
@@ -102,6 +109,8 @@ class Model:
         cv2.imwrite("most_similar_frame.jpg", most_similar_frame)
 
         cap.release()
+
+        return timestamp
 
     def error_between_two_images(self, img1, img2):
         """
