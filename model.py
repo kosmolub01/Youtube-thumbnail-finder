@@ -7,9 +7,6 @@ import threading
 from pytube import YouTube
 from math import floor
 
-# Define the number of threads to use.
-num_threads = 8
-
 class Model:
     """
     Model class of "Youtube thumbnail finder" app.
@@ -27,6 +24,10 @@ class Model:
     """
     def __init__(self) -> None:
         self.input_url = ""
+        self.thumbnail_filename = "thumbnail.jpg"
+        self.video_filename = "yt_video.mp4"
+        # Number of threads to use while processing video.
+        self.num_threads = 8
 
     def process_video(self):
         """
@@ -44,54 +45,53 @@ class Model:
         stream = yt.streams.filter(adaptive = True, mime_type="video/mp4").first()
 
         # Download video.
-        stream.download(filename = "yt_video.mp4")
+        stream.download(filename = self.video_filename)
 
         # Request thumbnail image.
         thumbnail_url = yt.thumbnail_url
 
-        self.request_and_save_thumbnail_img(thumbnail_url, "thumbnail.jpg")
+        self.request_and_save_thumbnail_img(thumbnail_url)
 
         # Compare thumbnail and video frames.
-        cap = cv2.VideoCapture("yt_video.mp4")
+        cap = cv2.VideoCapture(self.video_filename)
 
         # Max float possible value is init value for min_error.
         min_error = sys.float_info.max
 
         most_similar_frame_thread_index = 0 
 
-        self.remove_horizontal_black_bars_from_img('thumbnail.jpg')
+        self.remove_horizontal_black_bars_from_img()
 
         # Get the total number of frames in the video.
         num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
         # Calculate the number of frames per thread.
-        frames_per_thread = num_frames // num_threads
+        frames_per_thread = num_frames // self.num_threads
 
         # Threads return values - minimal errors.
-        minimal_errors = [None] * num_threads
+        minimal_errors = [None] * self.num_threads
 
         # Threads return values - timestamps.
-        timestamps = [None] * num_threads
+        timestamps = [None] * self.num_threads
 
         # Divide the video frames into segments.
-        segment_indexes = [[0 for x in range(2)] for y in range(num_threads)] 
+        segment_indexes = [[0 for x in range(2)] for y in range(self.num_threads)] 
 
-        for i in range(num_threads):
+        for i in range(self.num_threads):
             start_frame = i * frames_per_thread
             end_frame = start_frame + frames_per_thread
-            if i == num_threads - 1:
+            if i == self.num_threads - 1:
                 end_frame = num_frames
 
             segment_indexes[i] = start_frame, end_frame
 
         # Process each video segment in a separate thread.
         threads = []
-        for i in range(num_threads):
+        for i in range(self.num_threads):
             thread = threading.Thread(
                         target=self.process_video_segment, 
-                        args=("yt_video.mp4", segment_indexes[i], 
-                            "thumbnail.jpg", i, minimal_errors, 
-                            timestamps))
+                        args=(segment_indexes[i], i, 
+                              minimal_errors, timestamps))
             threads.append(thread)
             thread.start()
 
@@ -103,7 +103,7 @@ class Model:
 
         # Distinguish which thread returned minimal error. 
         # Assign timestamp and most_similar frame thread_index respectively.
-        for i in range(num_threads):
+        for i in range(self.num_threads):
             if min_error >= minimal_errors[i]:
                 min_error = minimal_errors[i]
                 timestamp = timestamps[i]
@@ -161,7 +161,7 @@ class Model:
 
     Returns:
         minutes -- miliseconds converted to minutes 
-                    (YouTube's video time format - e.g. 4.23).
+        (YouTube's video time format - e.g. 4.23).
 
     """
         # Less than 1 minute.
@@ -174,13 +174,12 @@ class Model:
 
         return minutes 
     
-    def request_and_save_thumbnail_img(self, thumbnail_url, filename):
+    def request_and_save_thumbnail_img(self, thumbnail_url):
         """
         Downloads and saves YouTube's video thumbnail.
 
         Args:
         thumbnail_url -- URL of a thumbnail.
-        filename -- name of a file to save (in cwd) downloaded thumbnail.
 
     """
         thumbnail_url = thumbnail_url.replace('sddefault', 'maxresdefault')
@@ -188,7 +187,7 @@ class Model:
         response = requests.get(thumbnail_url, stream=True)
 
         if response.status_code == 200:
-            with open(filename, "wb") as out_file:
+            with open(self.thumbnail_filename, "wb") as out_file:
                 shutil.copyfileobj(response.raw, out_file)
         else:
             print("Max resolution thumbnail is not available")
@@ -198,7 +197,7 @@ class Model:
             response = requests.get(thumbnail_url, stream=True)
 
             if response.status_code == 200:
-                with open(filename, "wb") as out_file:
+                with open(self.thumbnail_filename, "wb") as out_file:
                     shutil.copyfileobj(response.raw, out_file)
             else:
                 print("Thumbnail is not available")
@@ -207,16 +206,13 @@ class Model:
 
         del response
 
-    def remove_horizontal_black_bars_from_img(self, img_filename):
+    def remove_horizontal_black_bars_from_img(self):
         """
         Removes horizontal black bars from the image. Processed image is saved.
 
-        Args:
-        img_filename -- name of a file to process.
-
         """
             
-        img = cv2.imread(img_filename)
+        img = cv2.imread(self.thumbnail_filename)
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -237,11 +233,10 @@ class Model:
         # Crop image to bounding box.
         img_cropped = img[y:y+h, x:x+w]
 
-        cv2.imwrite(img_filename, img_cropped)
+        cv2.imwrite(self.thumbnail_filename, img_cropped)
 
     def process_video_segment(
-            self, video_filename, 
-            segment_indexes, thumbnail_filename, 
+            self, segment_indexes, 
             thread_no, segment_min_error, 
             timestamp):
         """
@@ -250,9 +245,7 @@ class Model:
         and it's similarity error is saved.
 
         Args:
-        video_filename -- name of a file to process.
         segment_indexes -- indexes pointing what part of video to process.
-        thumbnail_filename -- name of a file with thumbnail.
         thread_no -- number of a thread.
         segment_min_error -- list of minimal errors form threads.
         timestamp -- list of timestamps of frames from threads.
@@ -262,9 +255,9 @@ class Model:
         # Max float possible value is init value for min_error.
         min_error = sys.float_info.max
 
-        cap = cv2.VideoCapture(video_filename)
+        cap = cv2.VideoCapture(self.video_filename)
 
-        thumbnail = cv2.imread(thumbnail_filename)
+        thumbnail = cv2.imread(self.thumbnail_filename)
 
         print("Thread", thread_no, ":", segment_indexes[0], "-", segment_indexes[1])
 
