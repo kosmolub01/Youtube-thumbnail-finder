@@ -29,6 +29,7 @@ class Controller:
         self.model.input_url = self.view.input_url.get()       
         output_url = self.model.process_video()
         self.view.output_url.set(output_url)
+        self.view.show_thumbnail()
 
 if __name__ == "__main__":
 
