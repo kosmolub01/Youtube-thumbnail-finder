@@ -30,6 +30,7 @@ class View (tk.Tk):
         self.title("YouTube thumbnail finder")
         self.geometry('600x400')
         self.resizable(False,False)
+        self._replace_default_icon()
 
         self._make_main_frame()
         self._make_image_frame()
@@ -72,5 +73,10 @@ class View (tk.Tk):
 
     def _make_button(self):
         ttk.Button(self.main_frm, text="Find moment form thumbnail", command=self.controller.button_on_click).grid(column=2, row=0)
+
+    def _replace_default_icon(self):
+        ico = Image.open('icon.jpg')
+        photo = ImageTk.PhotoImage(ico)
+        self.wm_iconphoto(False, photo)
 
     
