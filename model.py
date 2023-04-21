@@ -55,6 +55,8 @@ class Model:
             raise(InternetConnectionException)
         except VideoUnavailable:
             raise(InvalidVideoUrlException)
+        except KeyError:
+            stream = yt.streams.filter(adaptive = True, mime_type="video/mp4").first()
         # Download video.
         stream.download(filename = self.video_filename)
 
