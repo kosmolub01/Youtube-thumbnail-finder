@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+from tkinter import messagebox
 from PIL import Image, ImageTk
 
 class View (tk.Tk):
@@ -28,7 +29,7 @@ class View (tk.Tk):
         self.img = ""
 
         self.title("YouTube thumbnail finder")
-        self.geometry('600x400')
+        self._center_window(600, 400)
         self.resizable(False,False)
         self._replace_default_icon()
 
@@ -46,6 +47,24 @@ class View (tk.Tk):
         img = img.resize((393,193))
         self.img = ImageTk.PhotoImage(img)
         self.label_with_img.configure(image=self.img)
+
+    def show_messagebox(self, type, message):
+        if type == "Error":
+            messagebox.showerror("Error", message, parent=self)
+        elif type == "Warning":
+            messagebox.showwarning("Warning", message, parent=self)
+        else:
+            messagebox.showinfo("Info", message, parent=self)
+
+    def _center_window(self, width, height):
+
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+
+        x = (screen_width/2) - (width/2)
+        y = (screen_height/2) - (height/2)
+
+        self.geometry('%dx%d+%d+%d' % (width, height, x, y)) 
 
     def _make_main_frame(self):
         self.main_frm = ttk.Frame(self, padding=10)
@@ -78,5 +97,7 @@ class View (tk.Tk):
         ico = Image.open('icon.jpg')
         photo = ImageTk.PhotoImage(ico)
         self.wm_iconphoto(False, photo)
+
+    
 
     

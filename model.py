@@ -5,6 +5,8 @@ import cv2
 import numpy as np
 import threading
 from pytube import YouTube
+from pytube.exceptions import VideoUnavailable
+from urllib.error import URLError
 from math import floor
 from exceptions import *
 
@@ -48,9 +50,10 @@ class Model:
         # Get filtered stream for the video.
         try:
             stream = yt.streams.filter(adaptive = True, mime_type="video/mp4").first()
-        except:
+        except URLError:
             raise(InternetConnectionException)
-
+        except VideoUnavailable:
+            raise(InvalidVideoUrlException)
         # Download video.
         stream.download(filename = self.video_filename)
 

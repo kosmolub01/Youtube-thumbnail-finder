@@ -31,7 +31,7 @@ class Controller:
         if self._check_internet_connectivity() == False:
             message = "No internet connection available. "\
                 "To use application, connect computer to the internet."
-            self.view.show_error_message(message)
+            self.view.show_messagebox("Error", message)
 
         self.view.main()
 
