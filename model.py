@@ -6,6 +6,7 @@ import numpy as np
 import threading
 from pytube import YouTube
 from math import floor
+from exceptions import *
 
 class Model:
     """
@@ -39,10 +40,16 @@ class Model:
 
         """
         # YouTube object with URL of desired video.
-        yt = YouTube(self.input_url)
+        try:
+            yt = YouTube(self.input_url)
+        except:
+            raise(InvalidVideoUrlException)
 
         # Get filtered stream for the video.
-        stream = yt.streams.filter(adaptive = True, mime_type="video/mp4").first()
+        try:
+            stream = yt.streams.filter(adaptive = True, mime_type="video/mp4").first()
+        except:
+            raise(InternetConnectionException)
 
         # Download video.
         stream.download(filename = self.video_filename)
