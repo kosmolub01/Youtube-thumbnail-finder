@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import threading
 from pytube import YouTube
+from pytube.extract import video_id
 from pytube.exceptions import VideoUnavailable
 from urllib.error import URLError
 from math import floor
@@ -121,8 +122,10 @@ class Model:
 
         print("Min. error: " + str( min_error))
 
-        # Print timestamp URL.
-        timestamp = self.input_url + "&t=" + str(timestamp)
+        # Create timestamp URL 
+        # (even if user provided not exact URL eg. with typos). 
+        id = video_id(self.input_url)
+        timestamp = "https://youtube.com/watch?v=" + id + "&t=" + str(timestamp)
 
         # Save most similar frame.
         index=str(most_similar_frame_thread_index)
