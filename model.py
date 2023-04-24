@@ -5,7 +5,11 @@ import cv2
 import numpy as np
 import threading
 from pytube import YouTube
+from pytube.extract import video_id
+from pytube.exceptions import VideoUnavailable
+from urllib.error import URLError
 from math import floor
+from exceptions import *
 
 class Model:
     """
@@ -39,11 +43,20 @@ class Model:
 
         """
         # YouTube object with URL of desired video.
-        yt = YouTube(self.input_url)
+        try:
+            yt = YouTube(self.input_url)
+        except:
+            raise(InvalidVideoUrlException)
 
         # Get filtered stream for the video.
-        stream = yt.streams.filter(adaptive = True, mime_type="video/mp4").first()
-
+        try:
+            stream = yt.streams.filter(adaptive = True, mime_type="video/mp4").first()
+        except URLError:
+            raise(InternetConnectionException)
+        except VideoUnavailable:
+            raise(InvalidVideoUrlException)
+        except KeyError:
+            stream = yt.streams.filter(adaptive = True, mime_type="video/mp4").first()
         # Download video.
         stream.download(filename = self.video_filename)
 
@@ -111,8 +124,10 @@ class Model:
 
         print("Min. error: " + str( min_error))
 
-        # Print timestamp URL.
-        timestamp = self.input_url + "&t=" + str(timestamp)
+        # Create timestamp URL 
+        # (even if user provided not exact URL eg. with typos). 
+        id = video_id(self.input_url)
+        timestamp = "https://youtube.com/watch?v=" + id + "&t=" + str(timestamp)
 
         # Save most similar frame.
         index=str(most_similar_frame_thread_index)
