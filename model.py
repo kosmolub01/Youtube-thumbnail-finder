@@ -3,13 +3,20 @@ import requests
 import shutil
 import cv2
 import numpy as np
-import threading
+from multiprocessing import Process, Manager
 from pytube import YouTube
 from pytube.extract import video_id
 from pytube.exceptions import VideoUnavailable
 from urllib.error import URLError
 from math import floor
 from exceptions import *
+import time
+
+"""
+TODO
+Fix imports
+Wait after KeyError: 'streamingData' occurs, then repeat
+"""
 
 class Model:
     """
@@ -30,8 +37,8 @@ class Model:
         self.input_url = ""
         self.thumbnail_filename = "thumbnail.jpg"
         self.video_filename = "yt_video.mp4"
-        # Number of threads to use while processing video.
-        self.num_threads = 8
+        # Number of processes to use while processing video.
+        self.num_processes = 8
 
     def process_video(self):
         """
@@ -71,56 +78,64 @@ class Model:
         # Max float possible value is init value for min_error.
         min_error = sys.float_info.max
 
-        most_similar_frame_thread_index = 0 
+        most_similar_frame_process_index = 0 
 
         self.remove_horizontal_black_bars_from_img()
 
         # Get the total number of frames in the video.
         num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        # Calculate the number of frames per thread.
-        frames_per_thread = num_frames // self.num_threads
+        # Calculate the number of frames per process.
+        frames_per_process = num_frames // self.num_processes
 
-        # Threads return values - minimal errors.
-        minimal_errors = [None] * self.num_threads
+        manager = Manager()
 
-        # Threads return values - timestamps.
-        timestamps = [None] * self.num_threads
+        # Processes return values - minimal errors.
+        minimal_errors = manager.dict()
+
+        # Processes return values - timestamps.
+        timestamps = manager.dict()
 
         # Divide the video frames into segments.
-        segment_indexes = [[0 for x in range(2)] for y in range(self.num_threads)] 
+        segment_indexes = [[0 for x in range(2)] for y in range(self.num_processes)] 
 
-        for i in range(self.num_threads):
-            start_frame = i * frames_per_thread
-            end_frame = start_frame + frames_per_thread
-            if i == self.num_threads - 1:
+        for i in range(self.num_processes):
+            start_frame = i * frames_per_process
+            end_frame = start_frame + frames_per_process
+            if i == self.num_processes - 1:
                 end_frame = num_frames
 
             segment_indexes[i] = start_frame, end_frame
 
-        # Process each video segment in a separate thread.
-        threads = []
-        for i in range(self.num_threads):
-            thread = threading.Thread(
-                        target=self.process_video_segment, 
-                        args=(segment_indexes[i], i, 
-                              minimal_errors, timestamps))
-            threads.append(thread)
-            thread.start()
+        start = time.time()
 
-        # Wait for all threads to finish.
-        for thread in threads:
-            thread.join()
+        # Process each video segment in a separate process.
+        processes = []
+        for i in range(self.num_processes):
+            process = Process(
+                target=self.process_video_segment, 
+                args=(segment_indexes[i], i, 
+                      minimal_errors, timestamps))
+                        
+            processes.append(process)
+            process.start()
 
-        print("Threads joined")
+        # Wait for all processes to finish.
+        for process in processes:
+            process.join()
 
-        # Distinguish which thread returned minimal error. 
-        # Assign timestamp and most_similar frame thread_index respectively.
-        for i in range(self.num_threads):
+        print("Processes joined")
+
+        end = time.time()
+        print("Time:", end - start)
+
+        # Distinguish which process returned minimal error. 
+        # Assign timestamp and most_similar_frame_process_index respectively.
+        for i in range(self.num_processes):
             if min_error >= minimal_errors[i]:
                 min_error = minimal_errors[i]
                 timestamp = timestamps[i]
-                most_similar_frame_thread_index = i
+                most_similar_frame_process_index = i
 
         print("Min. error: " + str( min_error))
 
@@ -130,7 +145,7 @@ class Model:
         timestamp = "https://youtube.com/watch?v=" + id + "&t=" + str(timestamp)
 
         # Save most similar frame.
-        index=str(most_similar_frame_thread_index)
+        index=str(most_similar_frame_process_index)
         most_similar_frame_filename = "most_similar_frame{i}.jpg".format(i=index)
 
         most_similar_frame = cv2.imread(most_similar_frame_filename)
@@ -252,7 +267,7 @@ class Model:
 
     def process_video_segment(
             self, segment_indexes, 
-            thread_no, segment_min_error, 
+            process_no, segment_min_error, 
             timestamp):
         """
         Processes video segment - every frame of a video is compared 
@@ -261,9 +276,9 @@ class Model:
 
         Args:
         segment_indexes -- indexes pointing what part of video to process.
-        thread_no -- number of a thread.
-        segment_min_error -- list of minimal errors form threads.
-        timestamp -- list of timestamps of frames from threads.
+        process_no -- number of a process.
+        segment_min_error -- dict of minimal errors form processes.
+        timestamp -- dict of timestamps of frames from processes.
 
         """
 
@@ -274,7 +289,7 @@ class Model:
 
         thumbnail = cv2.imread(self.thumbnail_filename)
 
-        print("Thread", thread_no, ":", segment_indexes[0], "-", segment_indexes[1])
+        print("Process", process_no, ":", segment_indexes[0], "-", segment_indexes[1])
 
         cap.set(cv2.CAP_PROP_POS_FRAMES, segment_indexes[0])
         for i in range(segment_indexes[0], segment_indexes[1]):
@@ -286,13 +301,13 @@ class Model:
                     most_similar_frame = frame
                     msec = cap.get(cv2.CAP_PROP_POS_MSEC)
 
-        most_similar_frame_filename = "most_similar_frame" + str(thread_no) + ".jpg"
+        most_similar_frame_filename = "most_similar_frame" + str(process_no) + ".jpg"
         cv2.imwrite(most_similar_frame_filename, most_similar_frame)
 
         cap.release()
 
-        segment_min_error[thread_no] = min_error
-        timestamp[thread_no] = int(msec // 1000)
+        segment_min_error[process_no] = min_error
+        timestamp[process_no] = int(msec // 1000)
 
 
     
