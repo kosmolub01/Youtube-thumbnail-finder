@@ -45,6 +45,8 @@ class Controller:
             self.view.show_messagebox("Error", e)
         except(InvalidVideoUrlException) as e:
             self.view.show_messagebox("Info", e)
+        except(PytubeStreamException) as e:
+            self.view.show_messagebox("Error", e)
 
     def _check_internet_connectivity(self) -> bool:
         conn = httplib.HTTPSConnection("8.8.8.8", timeout=5)

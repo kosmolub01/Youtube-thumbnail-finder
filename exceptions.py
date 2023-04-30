@@ -13,3 +13,10 @@ class InvalidVideoUrlException(Exception):
 
    def __str__(self):
       return "Provide valid YouTube video URL."
+   
+class PytubeStreamException(Exception):
+   def __init__(self):
+      pass
+
+   def __str__(self):
+      return "Unexpected error occurred. Program was unable to download the video. Please, try again."
