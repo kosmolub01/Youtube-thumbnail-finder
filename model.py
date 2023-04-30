@@ -73,7 +73,7 @@ class Model:
                 # If trying to get the stream took longer than 30 seconds, 
                 # then raise an exception
                 if interval > 30:
-                    raise(InvalidVideoUrlException)
+                    raise(PytubeStreamException)
 
         # Download video.
         stream.download(filename = self.video_filename)
