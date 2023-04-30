@@ -55,15 +55,26 @@ class Model:
         except:
             raise(InvalidVideoUrlException)
 
+        # To be able to determine how long getting stream take
+        start = time.time()
+
         # Get filtered stream for the video.
-        try:
-            stream = yt.streams.filter(adaptive = True, mime_type="video/mp4").first()
-        except URLError:
-            raise(InternetConnectionException)
-        except VideoUnavailable:
-            raise(InvalidVideoUrlException)
-        except KeyError:
-            stream = yt.streams.filter(adaptive = True, mime_type="video/mp4").first()
+        while True:
+            try:
+                stream = yt.streams.filter(adaptive = True, mime_type="video/mp4").first()
+                break
+            except URLError:
+                raise(InternetConnectionException)
+            except VideoUnavailable:
+                raise(InvalidVideoUrlException)
+            except KeyError:
+                interval = time.time() - start
+
+                # If trying to get the stream took longer than 30 seconds, 
+                # then raise an exception
+                if interval > 30:
+                    raise(InvalidVideoUrlException)
+
         # Download video.
         stream.download(filename = self.video_filename)
 
