@@ -1,9 +1,11 @@
 from email import message
+from multiprocessing import process
 import sys
 from model import Model
 from view import View
 from exceptions import *
 import http.client as httplib
+import threading
 
 class Controller:
     """
@@ -24,6 +26,7 @@ class Controller:
     def __init__(self) -> None:
         self.model = Model()
         self.view = View(self)
+        self.processing_video = False
 
     def main(self):
         # Check internet_connectivity. 
@@ -35,18 +38,32 @@ class Controller:
 
         self.view.main()
 
-    def button_on_click(self):       
+    def button_on_click(self):
+        if self.processing_video:
+            return
+
+        self.view.process_video_btn.state(["disabled"]) # Disable the button.
+        self.processing_video = True   
+        t = threading.Thread(target=self._start_processing_video) 
+        t.start()
+
+    # Function to be run in separate thread
+    def _start_processing_video(self):
         self.model.input_url = self.view.input_url.get()       
         try:   
             output_url = self.model.process_video()
             self.view.output_url.set(output_url)
             self.view.show_thumbnail()
+             
         except(InternetConnectionException) as e:
             self.view.show_messagebox("Error", e)
         except(InvalidVideoUrlException) as e:
             self.view.show_messagebox("Info", e)
         except(PytubeStreamException) as e:
             self.view.show_messagebox("Error", e)
+        finally:
+            self.processing_video = False 
+            self.view.process_video_btn.state(["!disabled"]) # Enable the button.
 
     def _check_internet_connectivity(self) -> bool:
         conn = httplib.HTTPSConnection("8.8.8.8", timeout=5)

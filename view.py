@@ -91,7 +91,8 @@ class View (tk.Tk):
         output_url_ent.grid(column=1, row=1, padx=10, pady=5)
 
     def _make_button(self):
-        ttk.Button(self.main_frm, text="Find moment form thumbnail", command=self.controller.button_on_click).grid(column=2, row=0)
+        self.process_video_btn = ttk.Button(self.main_frm, text="Find moment form thumbnail", command=self.controller.button_on_click)
+        self.process_video_btn.grid(column=2, row=0)
 
     def _replace_default_icon(self):
         ico = Image.open('icon.jpg')
