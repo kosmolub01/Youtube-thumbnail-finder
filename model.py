@@ -118,8 +118,6 @@ class Model:
 
             segment_indexes[i] = start_frame, end_frame
 
-        start = time.time()
-
         # Process each video segment in a separate process.
         processes = []
         for i in range(self.num_processes):
@@ -135,11 +133,6 @@ class Model:
         for process in processes:
             process.join()
 
-        print("Processes joined")
-
-        end = time.time()
-        print("Time:", end - start)
-
         # Distinguish which process returned minimal error. 
         # Assign timestamp and most_similar_frame_process_index respectively.
         for i in range(self.num_processes):
@@ -147,8 +140,6 @@ class Model:
                 min_error = minimal_errors[i]
                 timestamp = timestamps[i]
                 most_similar_frame_process_index = i
-
-        print("Min. error: " + str( min_error))
 
         # Create timestamp URL 
         # (even if user provided not exact URL eg. with typos). 
@@ -177,7 +168,7 @@ class Model:
             img2 -- second image.
 
         Returns:
-            err -- error between two images 
+            err (float) -- error between two images 
             (mean of differences between corresponding pixels).
 
         """
@@ -195,16 +186,16 @@ class Model:
 
     def miliseconds_to_minutes(miliseconds):
         """
-    Converts miliseconds to minutes.
+        Converts miliseconds to minutes.
 
-    Args:
-        miliseconds -- time in miliseconds to convert.
+        Args:
+            miliseconds -- time in miliseconds to convert.
 
-    Returns:
-        minutes -- miliseconds converted to minutes 
-        (YouTube's video time format - e.g. 4.23).
+        Returns:
+            minutes -- miliseconds converted to minutes 
+            (YouTube's video time format - e.g. 4.23).
 
-    """
+        """
         # Less than 1 minute.
         if(miliseconds / 60000 < 1):
             minutes = "0." + str(round(miliseconds / 1000))
@@ -222,7 +213,7 @@ class Model:
         Args:
         thumbnail_url -- URL of a thumbnail.
 
-    """
+        """
         thumbnail_url = thumbnail_url.replace('sddefault', 'maxresdefault')
 
         response = requests.get(thumbnail_url, stream=True)
@@ -231,7 +222,6 @@ class Model:
             with open(self.thumbnail_filename, "wb") as out_file:
                 shutil.copyfileobj(response.raw, out_file)
         else:
-            print("Max resolution thumbnail is not available")
 
             thumbnail_url = thumbnail_url.replace('maxresdefault', 'sddefault')
 
@@ -240,10 +230,6 @@ class Model:
             if response.status_code == 200:
                 with open(self.thumbnail_filename, "wb") as out_file:
                     shutil.copyfileobj(response.raw, out_file)
-            else:
-                print("Thumbnail is not available")
-        
-        print("Thumbnail URL:", thumbnail_url)
 
         del response
 
@@ -299,8 +285,6 @@ class Model:
         cap = cv2.VideoCapture(self.video_filename)
 
         thumbnail = cv2.imread(self.thumbnail_filename)
-
-        print("Process", process_no, ":", segment_indexes[0], "-", segment_indexes[1])
 
         cap.set(cv2.CAP_PROP_POS_FRAMES, segment_indexes[0])
         for i in range(segment_indexes[0], segment_indexes[1]):
