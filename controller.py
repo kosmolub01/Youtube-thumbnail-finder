@@ -46,6 +46,7 @@ class Controller:
         self.processing_video = True   
         t = threading.Thread(target=self._start_processing_video) 
         t.start()
+        self.view.set_status_bar_msg("Processing the video...")
 
     # Function to be run in separate thread
     def _start_processing_video(self):
@@ -63,6 +64,7 @@ class Controller:
             self.view.show_messagebox("Error", e)
         finally:
             self.processing_video = False 
+            self.view.set_status_bar_msg("Program has finished.")
             self.view.process_video_btn.state(["!disabled"]) # Enable the button.
 
     def _check_internet_connectivity(self) -> bool:
