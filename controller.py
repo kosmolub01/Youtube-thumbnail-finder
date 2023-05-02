@@ -1,6 +1,3 @@
-from email import message
-from multiprocessing import process
-import sys
 from model import Model
 from view import View
 from exceptions import *
@@ -63,14 +60,17 @@ class Controller:
             self.view.set_status_bar_msg("Error.")
             self.view.show_messagebox("Error", e)
             self.view.set_status_bar_msg("")
+
         except(InvalidVideoUrlException) as e:
-            self.view.set_status_bar_msg("Error.")
+            self.view.set_status_bar_msg("Info.")
             self.view.show_messagebox("Info", e)
             self.view.set_status_bar_msg("")
+
         except(PytubeStreamException) as e:
             self.view.set_status_bar_msg("Error.")
             self.view.show_messagebox("Error", e)
             self.view.set_status_bar_msg("")
+
         finally:
             self.processing_video = False 
             self.view.process_video_btn.state(["!disabled"]) # Enable the button.
