@@ -34,7 +34,9 @@ class Controller:
         if self._check_internet_connectivity() == False:
             message = "No internet connection available. "\
                 "To use application, connect computer to the internet."
+            self.view.set_status_bar_msg("Error.")
             self.view.show_messagebox("Error", message)
+            self.view.set_status_bar_msg("")
 
         self.view.main()
 
@@ -55,16 +57,22 @@ class Controller:
             output_url = self.model.process_video()
             self.view.output_url.set(output_url)
             self.view.show_thumbnail()
+            self.view.set_status_bar_msg("Program has finished.")
              
         except(InternetConnectionException) as e:
+            self.view.set_status_bar_msg("Error.")
             self.view.show_messagebox("Error", e)
+            self.view.set_status_bar_msg("")
         except(InvalidVideoUrlException) as e:
+            self.view.set_status_bar_msg("Error.")
             self.view.show_messagebox("Info", e)
+            self.view.set_status_bar_msg("")
         except(PytubeStreamException) as e:
+            self.view.set_status_bar_msg("Error.")
             self.view.show_messagebox("Error", e)
+            self.view.set_status_bar_msg("")
         finally:
             self.processing_video = False 
-            self.view.set_status_bar_msg("Program has finished.")
             self.view.process_video_btn.state(["!disabled"]) # Enable the button.
 
     def _check_internet_connectivity(self) -> bool:

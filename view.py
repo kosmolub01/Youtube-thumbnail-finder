@@ -129,7 +129,9 @@ class View (tk.Tk):
             self.set_status_bar_msg("")
 
     def set_status_bar_msg(self, msg):
-        if msg != "":
+        if msg == "":
+            self.status_bar_lbl.configure(background="grey94")
+        else:
             self.status_bar_lbl.configure(background="white")
         self.status_bar_lbl.configure(text=msg)
 
